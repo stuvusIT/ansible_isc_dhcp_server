@@ -1,0 +1,22 @@
+---
+- name: Install isc-dhcp-server
+  apt:
+    name:
+      - isc-dhcp-server
+
+- name: Write dhcp service config
+  template:
+    src: isc-dhcp-server.j2
+    dest: /etc/default/isc-dhcp-server
+  notify: Restart isc-dhcp-server
+
+- name: Write dhcpd config
+  template:
+    src: dhcpd.conf.j2
+    dest: /etc/dhcp/dhcpd.conf
+  notify: Restart isc-dhcp-server
+
+- name: Enable isc-dhcp-server service
+  systemd:
+    name: isc-dhcp-server
+    enabled: True
