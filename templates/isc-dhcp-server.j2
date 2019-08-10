@@ -1,0 +1,7 @@
+# {{ ansible_managed }}
+
+DHCPD_CONF=/etc/dhcp/dhcpd.conf
+
+{% if isc_dhcp_server_interfaces is defined and isc_dhcp_server_interfaces | length >0 %}
+INTERFACESv4="{{ isc_dhcp_server_interfaces | default([]) | join(" ") }}"
+{% endif %}
