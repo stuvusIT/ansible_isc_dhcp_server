@@ -3,6 +3,16 @@
 #
 # Global options
 #
+
+option space ubnt;
+option ubnt.unifi-address code 1 = ip-address;
+
+class "ubnt" {
+        match if substring (option vendor-class-identifier, 0, 4) = "ubnt";
+        option vendor-class-identifier "ubnt";
+        vendor-option-space ubnt;
+}
+
 {% if isc_dhcp_server_authoritative %}
 authoritative;
 {% endif %}
