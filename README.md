@@ -11,22 +11,46 @@ Debian 10
 ## Role Variables
 
 
-| Name                                  | Required/Default         | Description                                                                                                     |
-|---------------------------------------|:------------------------:|-----------------------------------------------------------------------------------------------------------------|
-| `isc_dhcp_server_interfaces`          | :heavy_multiplication_x: | List of IPv4 interfaces to listen on                                                                            |
-| `isc_dhcp_server_authoritative`       | `False`                  | Whether this DHCP is authoritative for its subnets                                                              |
-| `isc_dhcp_server_default_lease_time`  | :heavy_multiplication_x: | Default lease time to offer DHCP clients                                                                        |
-| `isc_dhcp_server_max_lease_time`      | :heavy_multiplication_x: | Maximum lease time to allow DHCP clients                                                                        |
-| `isc_dhcp_server_routers`             | :heavy_multiplication_x: | List of routers to advertise                                                                                    |
-| `isc_dhcp_server_ntp_servers`         | :heavy_multiplication_x: | List of NTP servers to advertise                                                                                |
-| `isc_dhcp_server_domain_name_servers` | :heavy_multiplication_x: | List of name servers to advertise                                                                               |
-| `isc_dhcp_server_domain_search`       | :heavy_multiplication_x: | List of search domains to advertise                                                                             |
-| `isc_dhcp_server_other_flags`         | :heavy_multiplication_x: | List of other flags to set in the global config section                                                         |
-| `isc_dhcp_server_other_options`       | :heavy_multiplication_x: | List of other options to set in the global config section using `option`                                        |
-| `isc_dhcp_server_failover`            | :heavy_multiplication_x: | Dict to configure failover, see below                                                                           |
-| `isc_dhcp_server_subnets`             | :heavy_check_mark:       | Dict of subnets, see below                                                                                      |
-| `isc_dhcp_server_hosts`               | :heavy_multiplication_x: | Dict of hosts to assign reserved addresses. Use the MAC address as key and specify `host` and `ip` in the dict. |
+| Name                                  |     Required/Default     | Description                                                                         |
+| ------------------------------------- | :----------------------: | ----------------------------------------------------------------------------------- |
+| `isc_dhcp_server_interfaces`          | :heavy_multiplication_x: | List of IPv4 interfaces to listen on                                                |
+| `isc_dhcp_server_authoritative`       |         `False`          | Whether this DHCP is authoritative for its subnets                                  |
+| `isc_dhcp_server_default_lease_time`  | :heavy_multiplication_x: | Default lease time to offer DHCP clients                                            |
+| `isc_dhcp_server_max_lease_time`      | :heavy_multiplication_x: | Maximum lease time to allow DHCP clients                                            |
+| `isc_dhcp_server_routers`             | :heavy_multiplication_x: | List of routers to advertise                                                        |
+| `isc_dhcp_server_ntp_servers`         | :heavy_multiplication_x: | List of NTP servers to advertise                                                    |
+| `isc_dhcp_server_domain_name_servers` | :heavy_multiplication_x: | List of name servers to advertise                                                   |
+| `isc_dhcp_server_domain_search`       | :heavy_multiplication_x: | List of search domains to advertise                                                 |
+| `isc_dhcp_server_other_flags`         | :heavy_multiplication_x: | List of other flags to set in the global config section                             |
+| `isc_dhcp_server_other_options`       | :heavy_multiplication_x: | List of other options to set in the global config section using `option`            |
+| `isc_dhcp_server_failover`            | :heavy_multiplication_x: | Dict to configure failover, see below                                               |
+| `isc_dhcp_server_subnets`             |    :heavy_check_mark:    | Dict of subnets, see below                                                          |
+| `isc_dhcp_server_hosts`               | :heavy_multiplication_x: | Dict of [host declarations](#host-declarations) so as to assign reserved addresses. |
 
+### Host Declarations
+
+In a host declaration, the key is a MAC address and the value is another dictionary containing the
+keys `host` and `ip`.
+Example:
+
+```yaml
+  "00:0a:95:9d:68:16":
+    host: examplehostname
+    ip: 192.168.10.16
+```
+
+The host with that MAC address will be statically assigned the given IP address.
+The value of the `host` key is only used
+[as per the isc-dhcp-server documentation](https://kb.isc.org/docs/isc-dhcp-41-manual-pages-dhcpdconf):
+
+> The DHCP server determines the client’s hostname by first looking for a
+> ddns-hostname configuration option, and using that if it is present. If no
+> such option is present, the server looks for a valid hostname in the FQDN
+> option sent by the client. If one is found, it is used; otherwise, if the
+> client sent a host-name option, that is used. Otherwise, if there is a host
+> declaration that applies to the client, the name from that declaration will be
+> used. If none of these applies, the server will not have a hostname for the
+> client, and will not be able to do a DNS update.
 
 ### Failover
 
