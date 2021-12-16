@@ -1,110 +1,31 @@
 # {{ ansible_managed }}
 
-#
-# Global options
-#
-{% if isc_dhcp_server_authoritative %}
-authoritative;
-{% endif %}
-{% if isc_dhcp_server_default_lease_time is defined %}
-default-lease-time {{ isc_dhcp_server_default_lease_time }};
-{% endif %}
-{% if isc_dhcp_server_max_lease_time is defined %}
-max-lease-time {{ isc_dhcp_server_max_lease_time }};
-{% endif %}
-{% if isc_dhcp_server_routers is defined %}
-option routers {{ isc_dhcp_server_routers | join(", ") }};
-{% endif %}
-{% if isc_dhcp_server_ntp_servers is defined and isc_dhcp_server_ntp_servers | length >0 %}
-option ntp-servers {{ isc_dhcp_server_ntp_servers|join(", ") }};
-{% endif %}
-{% if isc_dhcp_server_domain_name_servers is defined and isc_dhcp_server_domain_name_servers | length >0 %}
-option domain-name-servers {{ isc_dhcp_server_domain_name_servers | join(", ") }};
-{% endif %}
-{% if isc_dhcp_server_domain_search is defined %}
-option domain-search {{ isc_dhcp_server_domain_search | map("to_json") | join(", ") }};
-{% endif %}
-{% for option in isc_dhcp_server_other_flags | default([]) %}
-{{ flag }};
-{% endfor %}
-{% for option in isc_dhcp_server_other_options | default([]) %}
-option {{ option }};
+{% for option in isc_dhcp_server_config_ipv4 %}
+{{ option }};
 {% endfor %}
 
-{% if isc_dhcp_server_failover.peer is defined %}
-#
-# Failover config
-#
-failover peer "{{ isc_dhcp_server_failover.peer }}" {
-{% if isc_dhcp_server_failover.primary is defined and isc_dhcp_server_failover.primary %}
-  primary;
+{% for subnet, options in isc_dhcp_server_subnets.items() %}
+{% if subnet | ipv4 %}
+subnet {{ subnet | ipaddr('network') }} netmask {{ subnet | ipaddr('netmask') }} {
+{% if options | map('regex_search', '^range ') | select('string') | length == 0 %}
+  range {{ subnet | ipaddr('100') | ipaddr('address') }} {{ subnet | ipaddr('-2') | ipaddr('address') }};
 {% endif %}
-  address {{ isc_dhcp_server_failover.address }};
-  port {{ isc_dhcp_server_failover.port }};
-  peer address {{ isc_dhcp_server_failover.peer_address }};
-  peer port {{ isc_dhcp_server_failover.port }};
-{% if isc_dhcp_server_failover.max_response_delay is defined %}
-  max-response-delay {{ isc_dhcp_server_failover.max_response_delay }};
+{% if options | map('regex_search', '^option routers ') | select('string') | length == 0 %}
+  option routers {{ subnet | ipaddr('address') }};
 {% endif %}
-  max-unacked-updates {{ isc_dhcp_server_failover.max_unacked_updates }};
-{% if isc_dhcp_server_failover.split is defined %}
-  split {{ isc_dhcp_server_failover.split }};
-{% endif %}
-{% if isc_dhcp_server_failover.primary is defined and isc_dhcp_server_failover.primary and isc_dhcp_server_failover.mclt is defined %}
-  mclt {{ isc_dhcp_server_failover.mclt }};
-{% endif %}
-{% if isc_dhcp_server_failover.load_balance_max_seconds is defined %}
-  load balance max seconds {{ isc_dhcp_server_failover.load_balance_max_seconds }};
-{% endif %}
-{% if isc_dhcp_server_failover.max_lease_misbalance is defined %}
-  max-lease-misbalance {{ isc_dhcp_server_failover.max_lease_misbalance }};
-{% endif %}
-{% if isc_dhcp_server_failover.max_lease_ownership is defined %}
-  max-lease-ownership {{ isc_dhcp_server_failover.max_lease_ownership }};
-{% endif %}
-{% if isc_dhcp_server_failover.min_balance is defined %}
-  min-balance {{ isc_dhcp_server_failover.min_balance }};
-{% endif %}
-{% if isc_dhcp_server_failover.max_balance is defined %}
-  max-balance {{ isc_dhcp_server_failover.max_balance }};
-{% endif %}
-}
-{% endif %}
-
-#
-# Subnet declarations
-#
-{% for ip, options in isc_dhcp_server_subnets.items() %}
-subnet {{ ip }} netmask {{ options.netmask }} {
-{% if options.range_begin is defined and options.range_end is defined %}
-  range {{ options.range_begin }} {{ options.range_end }};
-{% endif %}
-{% if options.routers is defined %}
-  option routers {{ options.routers | join(", ") }};
-{% endif %}
-{% if options.broadcast_address is defined %}
-  option broadcast-address {{ options.broadcast_address }};
-{% endif %}
-{% if options.default_lease_time is defined %}
-  default-lease-time {{ options.default_lease_time }};
-{% endif %}
-{% if options.max_lease_time is defined %}
-  max-lease-time {{ options.max_lease_time }};
-{% endif %}
-{% for option in options.other_flags | default([]) %}
-  {{ flag }};
-{% endfor %}
-{% for option in options.other_options | default([]) %}
-  option {{ option }};
+{% for option in options %}
+  {{ option }};
 {% endfor %}
 }
-
+{% endif %}
 {% endfor %}
 
-{% for mac, config in isc_dhcp_server_hosts.items() %}
-host {{ config.host }} {
-  hardware ethernet {{ mac }};
-  fixed-address {{ config.ip }};
+{% for host, options in isc_dhcp_server_hosts.items() %}
+host {{ host }} {
+{% for option in options %}
+{% if not option | regex_search('^fixed-address6 ') %}
+  {{ option }};
+{% endif %}
+{% endfor %}
 }
-
 {% endfor %}

@@ -1,2 +1,4 @@
 ---
-isc_dhcp_server_authoritative: False
+isc_dhcp_server_config_ipv4: []
+isc_dhcp_server_subnets: {}
+isc_dhcp_server_hosts: {}

@@ -2,4 +2,5 @@
 - name: Restart isc-dhcp-server
   systemd:
     name: isc-dhcp-server
+    enabled: True
     state: restarted

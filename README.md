@@ -1,46 +1,79 @@
 # Role Name
 
 This role installs and configures `isc-dhcp-server` on Debian.
-
+Currently it supports only DHCPv4 (IPv4).
 
 ## Requirements
 
 Debian 10
 
-
 ## Role Variables
 
+| Name                          |  Required/Default  | Description                                                                              |
+| ----------------------------- | :----------------: | ---------------------------------------------------------------------------------------- |
+| `isc_dhcp_server_interfaces`  | :heavy_check_mark: | List of IPv4 interfaces to listen on                                                     |
+| `isc_dhcp_server_config_ipv4` |        `[]`        | List of top-layer configuration statements (excluding semicolon), see `man 5 dhcpd.conf` |
+| `isc_dhcp_server_subnets`     |        `{}`        | Dict of [subnet declarations](#subnet-declarations)                                      |
+| `isc_dhcp_server_hosts`       |        `{}`        | Dict of [host declarations](#host-declarations)                                          |
 
-| Name                                  |     Required/Default     | Description                                                                         |
-| ------------------------------------- | :----------------------: | ----------------------------------------------------------------------------------- |
-| `isc_dhcp_server_interfaces`          | :heavy_multiplication_x: | List of IPv4 interfaces to listen on                                                |
-| `isc_dhcp_server_authoritative`       |         `False`          | Whether this DHCP is authoritative for its subnets                                  |
-| `isc_dhcp_server_default_lease_time`  | :heavy_multiplication_x: | Default lease time to offer DHCP clients                                            |
-| `isc_dhcp_server_max_lease_time`      | :heavy_multiplication_x: | Maximum lease time to allow DHCP clients                                            |
-| `isc_dhcp_server_routers`             | :heavy_multiplication_x: | List of routers to advertise                                                        |
-| `isc_dhcp_server_ntp_servers`         | :heavy_multiplication_x: | List of NTP servers to advertise                                                    |
-| `isc_dhcp_server_domain_name_servers` | :heavy_multiplication_x: | List of name servers to advertise                                                   |
-| `isc_dhcp_server_domain_search`       | :heavy_multiplication_x: | List of search domains to advertise                                                 |
-| `isc_dhcp_server_other_flags`         | :heavy_multiplication_x: | List of other flags to set in the global config section                             |
-| `isc_dhcp_server_other_options`       | :heavy_multiplication_x: | List of other options to set in the global config section using `option`            |
-| `isc_dhcp_server_failover`            | :heavy_multiplication_x: | Dict to configure failover, see below                                               |
-| `isc_dhcp_server_subnets`             |    :heavy_check_mark:    | Dict of subnets, see below                                                          |
-| `isc_dhcp_server_hosts`               | :heavy_multiplication_x: | Dict of [host declarations](#host-declarations) so as to assign reserved addresses. |
+### Subnet Declarations
 
-### Host Declarations
+In a subnet declaration, the key is the router IP followed by the netmask in CIDR notation.
+The value is a list of configuration statements (excluding semicolon) for that subnet.
+There are certain defaults:
 
-In a host declaration, the key is a MAC address and the value is another dictionary containing the
-keys `host` and `ip`.
+- If no `range` statement is given, then a range from network address plus 100 to broadcast address minus one will be configured.
+- If no `option routers` statement is given, then the router IP given in the key will be configured.
+
 Example:
 
 ```yaml
-  "00:0a:95:9d:68:16":
-    host: examplehostname
-    ip: 192.168.10.16
+isc_dhcp_server_subnets:
+  192.168.100.1/24: []
+  192.168.200.1/24:
+    - range 192.168.200.10 192.168.200.20
+    - option routers 192.168.200.254
+    - option all-subnets-local false
 ```
 
-The host with that MAC address will be statically assigned the given IP address.
-The value of the `host` key is only used
+gets translated to:
+
+```dhcpd.conf
+subnet 192.168.100.0 netmask 255.255.255.0 {
+  range 192.168.100.100 192.168.100.254;
+  option routers 192.168.100.1;
+}
+
+subnet 192.168.200.0 netmask 255.255.255.0 {
+  range 192.168.200.10 192.168.200.20;
+  option routers 192.168.200.254;
+  option all-subnets-local false;
+}
+```
+
+### Host Declarations
+
+In a host declaration, the key is a hostname.
+The value is a list of configuration statements (excluding semicolon) for that host.
+Example:
+
+```yaml
+isc_dhcp_server_hosts:
+  examplehostname:
+    - hardware ethernet 00:0a:95:9d:68:16
+    - fixed-address 192.168.10.16
+```
+
+gets translated to:
+
+```dhcpd.conf
+host examplehostname {
+  hardware ethernet 00:0a:95:9d:68:16;
+  fixed-address 192.168.10.16;
+}
+```
+
+The hostname is only used
 [as per the isc-dhcp-server documentation](https://kb.isc.org/docs/isc-dhcp-41-manual-pages-dhcpdconf):
 
 > The DHCP server determines the client’s hostname by first looking for a
@@ -52,54 +85,11 @@ The value of the `host` key is only used
 > used. If none of these applies, the server will not have a hostname for the
 > client, and will not be able to do a DNS update.
 
-### Failover
-
-DHCP failover allows to split the DHCP database between *exactly two hosts*.
-Both hosts should have the same subnet as well the failover configs (excluding host-specific settings, of course).
-I recommend reading the failover section in the [dhcpd.conf man page](https://linux.die.net/man/5/dhcpd.conf) before deploying this feature.
-`isc_dhcp_server_failover` is a dict with the following options:
-
-| Name                       | Required/Default                | Description                                                                                                                                              |
-|----------------------------|:-------------------------------:|----------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `peer`                     | :heavy_check_mark:              | Hostname of the failover peer (if this is defined, failover is configured)                                                                               |
-| `primary`                  | `False`                         | Whether this host is the primary one of both                                                                                                             |
-| `address`                  | :heavy_check_mark:              | IP Address to listen on for failover communication                                                                                                       |
-| `port`                     | :heavy_check_mark:              | Port to use for both communication directions (the man page recommends `647` or `847`                                                                    |
-| `peer_address`             | :heavy_check_mark:              | IP address of the peer for failover communication                                                                                                        |
-| `max_response_delay`       | :heavy_check_mark:              | Number of BNDUPD messages sent before an ACK must be received (`10` seems to work for the man page authors)                                              |
-| `split`                    | :heavy_multiplication_x:        | Ratio of how many IP addresses should be managed by the primary (Integer between `0` and `255`. The greater the value, the larger the primary ownership) |
-| `mclt`                     | :heavy_check_mark: (on primary) | Maximum client lead time (time that one peer may renew a lease before contacting the other peer)                                                         |
-| `load_balance_max_seconds` | :heavy_multiplication_x:        | Cutoff in seconds after which load balancing gets disabled                                                                                               |
-| `max_lease_misbalance`     | :heavy_multiplication_x:        | Misbalance in percent of both address pools, after which balancing is started                                                                            |
-| `max_lease_ownership`      | :heavy_multiplication_x:        | This value permits a small (percentage) skew in the lease balance of a percentage of the total number of free state leases.                              |
-| `min_balance`              | :heavy_multiplication_x:        | Minimum age of leases to consider in rebalancing                                                                                                         |
-| `max_balance`              | :heavy_multiplication_x:        | Maximum age of leases to consider in rebalancing                                                                                                         |
-
-
-### Subnets
-
-`isc_dhcp_server_subnets` is a dict of subnets to configure.
-You should configure every subnet that is attached to the DHCP server, but only set the range value for subnets you are authoritative for.
-The key is the network address, the value of it is a dict with the following entries:
-
-| Name                 | Required/Default         | Description                                                                                    |
-|----------------------|:------------------------:|------------------------------------------------------------------------------------------------|
-| `netmask`            | :heavy_check_mark:       | The netmask of this subnet (not in CIDR format)                                                |
-| `range_begin`        | :heavy_multiplication_x: | First IP address to assign                                                                     |
-| `range_end`          | :heavy_multiplication_x: | Last IP address to assign                                                                      |
-| `routers`            | :heavy_multiplication_x: | List of routers to advertise                                                                   |
-| `broadcast_address`  | :heavy_multiplication_x: | Broadcast IP address                                                                           |
-| `default_lease_time` | :heavy_multiplication_x: | Default lease time to use in thie subnet (if not defined, the global value from above is used) |
-| `max_lease_time`     | :heavy_multiplication_x: | Maximum lease time to use in thie subnet (if not defined, the global value from above is used) |
-| `other_flags`        | :heavy_multiplication_x: | List of other flags to set in this subnet config section                                       |
-| `other_options`      | :heavy_multiplication_x: | List of other options to set in this subnet config section using `option`                      |
-
-
 ## License
 
 This work is licensed under a [Creative Commons Attribution-ShareAlike 4.0 International License](https://creativecommons.org/licenses/by-sa/4.0/).
 
-
 ## Author Information
 
 - [Michel Weitbrecht (SlothOfAnarchy)](https://github.com/SlothOfAnarchy) _michel.weitbrecht@stuvus.uni-stuttgart.de_
+- [Sebastian Hasler (haslersn)](https://github.com/haslersn) _sebastian.hasler at stuvus.uni-stuttgart.de_

@@ -10,13 +10,16 @@
     dest: /etc/default/isc-dhcp-server
   notify: Restart isc-dhcp-server
 
-- name: Write dhcpd config
+- name: Write IPv4 config
   template:
     src: dhcpd.conf.j2
     dest: /etc/dhcp/dhcpd.conf
   notify: Restart isc-dhcp-server
 
+- meta: flush_handlers
+
 - name: Enable isc-dhcp-server service
   systemd:
     name: isc-dhcp-server
     enabled: True
+    state: started
