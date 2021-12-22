@@ -8,7 +8,7 @@
 {% if subnet | ansible.netcommon.ipv4 %}
 subnet {{ subnet | ansible.netcommon.ipaddr('network') }} netmask {{ subnet | ansible.netcommon.ipaddr('netmask') }} {
 {% if options | map('regex_search', '^range ') | select('string') == [] and subnet | ansible.netcommon.ipaddr('prefix') <= 25 %}
-  range {{ subnet | ansible.netcommon.ipaddr('100') | ansible.netcommon.ipaddr('address') }} {{ subnet | ansible.netcommon.ipaddr('-2') | ansible.netcommon.ipaddr('address') }};
+  range {{ subnet | ansible.netcommon.nthhost(100) | ansible.netcommon.ipaddr('address') }} {{ subnet | ansible.netcommon.nthhost(-2) | ansible.netcommon.ipaddr('address') }};
 {% endif %}
 {% if options | map('regex_search', '^option routers ') | select('string') == [] %}
   option routers {{ subnet | ansible.netcommon.ipaddr('address') }};
