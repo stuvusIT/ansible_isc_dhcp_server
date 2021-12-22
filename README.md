@@ -22,7 +22,7 @@ In a subnet declaration, the key is the router IP followed by the netmask in CID
 The value is a list of configuration statements (excluding semicolon) for that subnet.
 There are certain defaults:
 
-- If no `range` statement is given, then a range from network address plus 100 to broadcast address minus one will be configured.
+- If no `range` statement is given and the prefix length is at most 25, then a range from network address plus 100 to broadcast address minus one will be configured.
 - If no `option routers` statement is given, then the router IP given in the key will be configured.
 
 Example:
