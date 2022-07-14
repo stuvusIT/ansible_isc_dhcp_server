@@ -6,12 +6,12 @@
 
 {% for subnet, options in isc_dhcp_server_subnets.items() %}
 {% if subnet | ansible.netcommon.ipv4 %}
-subnet {{ subnet | ansible.netcommon.ipaddr('network') }} netmask {{ subnet | ansible.netcommon.ipaddr('netmask') }} {
-{% if options | map('regex_search', '^range ') | select('string') == [] and subnet | ansible.netcommon.ipaddr('prefix') <= 25 %}
-  range {{ subnet | ansible.netcommon.nthhost(100) }} {{ subnet | ansible.netcommon.nthhost(-2) }};
+subnet {{ subnet | ansible.utils.ipaddr('network') }} netmask {{ subnet | ansible.utils.ipaddr('netmask') }} {
+{% if options | map('regex_search', '^range ') | select('string') == [] and subnet | ansible.utils.ipaddr('prefix') <= 25 %}
+  range {{ subnet | ansible.utils.nthhost(100) }} {{ subnet | ansible.utils.nthhost(-2) }};
 {% endif %}
 {% if options | map('regex_search', '^option routers ') | select('string') == [] %}
-  option routers {{ subnet | ansible.netcommon.ipaddr('address') }};
+  option routers {{ subnet | ansible.utils.ipaddr('address') }};
 {% endif %}
 {% for option in options %}
   {{ option }};
